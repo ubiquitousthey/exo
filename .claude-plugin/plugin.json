@@ -1,0 +1,6 @@
+{
+  "name": "exo",
+  "description": "Personal developer tooling — Claude Code skills, commands, agents, and hooks.",
+  "commands": ["./commands/"],
+  "hooks": "./hooks/hooks.json"
+}

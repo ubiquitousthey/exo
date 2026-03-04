@@ -1,0 +1,13 @@
+{
+  "name": "exo",
+  "owner": {
+    "name": "ubiquitousthey"
+  },
+  "plugins": [
+    {
+      "name": "exo",
+      "source": "./",
+      "description": "Skills, commands, and agents for automated development workflows."
+    }
+  ]
+}

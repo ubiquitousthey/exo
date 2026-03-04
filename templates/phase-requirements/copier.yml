@@ -1,0 +1,14 @@
+_subdirectory: template
+
+phase_name:
+  type: str
+  help: "Name of this product phase (e.g., mvp, v2-onboarding, phase-1)"
+
+phase_description:
+  type: str
+  help: "One sentence describing this phase's goal"
+
+project_name:
+  type: str
+  help: "Project name (used in document headers)"
+  default: "{{ phase_name }}"

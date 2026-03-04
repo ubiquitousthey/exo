@@ -1,0 +1,46 @@
+# Requirements — {{ phase_name | title }}
+
+> **Phase:** {{ phase_name }}
+> **Goal:** {{ phase_description }}
+
+---
+
+<!--
+HOW TO ADD REQUIREMENTS:
+
+Each requirement is a level-2 heading: ## REQ-XXX: Short Title
+REQ IDs must be unique and sequential within this file (REQ-001, REQ-002, ...).
+
+After the heading, add a req-meta comment block with Type, Priority, Dependencies.
+Then write 2–4 sentences of prose describing WHAT is needed (not HOW).
+
+Run `/req-decompose scan .` to preview generated GitHub issues before creating them.
+
+Priority values: must-have | should-have | could-have | wont-have
+Type values:     feature | bug | chore | spike
+Dependencies:    list of REQ-IDs that must be resolved first, or []
+-->
+
+## REQ-001: [Short Requirement Title]
+
+<!-- req-meta
+Type: feature
+Priority: must-have
+Dependencies: []
+-->
+
+[Describe what the user or system needs. 2–4 sentences. Focus on WHAT, not HOW.
+What problem does this solve? Who benefits? What does success look like?]
+
+---
+
+## REQ-002: [Short Requirement Title]
+
+<!-- req-meta
+Type: feature
+Priority: should-have
+Dependencies: [REQ-001]
+-->
+
+[Describe requirement. The dependency on REQ-001 above means this requirement
+cannot be implemented until REQ-001 is complete.]
