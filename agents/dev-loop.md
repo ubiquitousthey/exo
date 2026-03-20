@@ -10,6 +10,28 @@ Invoked via the `/dev-loop` command. Requires a GitHub repository with `gh` CLI 
 
 - `--repo owner/repo` — Target repository (optional, defaults to current repo)
 - `--issue N` — Specific issue number to work on (optional, defaults to picking the oldest `claude-ready` issue)
+- `--plan-only` — Execute only steps 1-4 (planning), then stop and report the plan. Used by the command when `--review-plan` is specified.
+- `--implement-only` — Execute only steps 5-10 (implementation). Requires `--issue N`. Assumes steps 1-4 were already completed (branch exists, nano-spec exists, BDD feature exists). Used by the command after the user approves the plan.
+
+## Execution Modes
+
+**Full mode (default):** Execute all 10 steps sequentially.
+
+**Plan-only mode (`--plan-only`):** Execute steps 1-4, then STOP. Report back:
+- The issue number and title
+- The branch name
+- The nano-spec task directory path
+- The BDD feature file path
+- A brief summary of the planned phases from `todo.md`
+
+Do NOT proceed to step 5. The command layer will present this to the user for review.
+
+**Implement-only mode (`--implement-only`):** Skip steps 1-4. Read the existing nano-spec state from `tasks/dev-loop-<issue-number>/` to pick up where planning left off:
+1. Read `todo.md` to understand the phases
+2. Read `log.md` to understand what's been done
+3. Read the BDD feature file (path from the task directory)
+4. Check out the existing branch: `dev-loop/<issue-number>-*`
+5. Execute steps 5-10
 
 ## State Management
 
@@ -36,6 +58,9 @@ Thread traceability through every artifact:
 ## Workflow
 
 Execute the following 10 steps sequentially. After each step, update the nano-spec `log.md` with what was done.
+
+**When `--plan-only` is set, execute ONLY steps 1-4, then stop.**
+**When `--implement-only` is set, skip steps 1-4, execute steps 5-10.**
 
 ---
 
@@ -123,9 +148,22 @@ Create a detailed implementation plan with traceability.
    Include `[REQ-XXX]` only if a REQ-ID is available.
 7. Push the commit.
 
+**If `--plan-only` is set, STOP HERE.** Report the following and exit:
+- Issue number and title
+- Branch name
+- Nano-spec directory: `tasks/dev-loop-<issue-number>/`
+- BDD feature file path
+- Summary of planned phases from `todo.md` (phase names and descriptions)
+
 ---
 
 ### Step 5 — Implement Phases
+
+**If `--implement-only` is set, start here.** First, recover state:
+1. Read `tasks/dev-loop-<issue-number>/todo.md` to understand the implementation phases.
+2. Read `tasks/dev-loop-<issue-number>/log.md` to understand what's been done so far.
+3. Find and check out the existing branch: `git branch -a | grep dev-loop/<issue-number>` then `git checkout <branch>`.
+4. Proceed with implementation.
 
 For each phase defined in `todo.md`, execute the following sub-steps:
 
