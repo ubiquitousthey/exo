@@ -35,14 +35,16 @@ Do NOT proceed to step 5. The command layer will present this to the user for re
 
 ## State Management
 
-The nano-spec task directory (`tasks/dev-loop-<issue-number>/*`) IS the state. Read `todo.md` checkboxes to know which phase you're in and `log.md` to know what's been done. No separate state file is needed.
+The nano-spec task directory (`tasks/<feature-slug>/*`) IS the state. Read `todo.md` checkboxes to know which phase you're in and `log.md` to know what's been done. No separate state file is needed.
+
+The `<feature-slug>` is a human-readable kebab-case name derived from the issue title in Step 1 (e.g., issue "Add user authentication" → `user-authentication`). Strip prefixes like `REQ-XXX:` before slugifying. This slug is reused consistently for the task directory, branch name, and all references throughout the workflow.
 
 ## Traceability
 
 Maintain a traceability chain from requirement through to PR. At the start of the workflow, extract the **REQ-ID** from the issue title if it follows the `REQ-XXX: Title` pattern (set by req-decompose). If no REQ-ID is present, traceability uses the issue number only.
 
 Thread traceability through every artifact:
-- **Branch name**: `dev-loop/<issue-number>-<slug>` (always includes issue number)
+- **Branch name**: `dev-loop/<issue-number>-<feature-slug>` (always includes issue number)
 - **nano-spec README.md Traceability section**: populate with issue number, REQ-ID, and BDD feature file path
 - **BDD feature file**: `@REQ-XXX` and `@issue-N` tags, `@AC-N` tags per scenario
 - **Commit messages**: include `(#<issue-number>)` and REQ-ID when available
@@ -55,9 +57,58 @@ Thread traceability through every artifact:
 - **Network/API errors** → Retry with backoff (up to 3 attempts).
 - **BDD test loop** → Max 5 fix iterations, then pause for help.
 
+## Resume Mode
+
+When invoked with `--resume <identifier>`:
+
+**Resolve the identifier to a feature slug, issue number, and PR:**
+
+- If `<identifier>` is a **feature slug** (non-numeric, no `#`/`!`/`PR-` prefix):
+  1. Read `tasks/<identifier>/README.md` to extract the issue number from the Traceability section.
+  2. Derive the branch name: `dev-loop/<issue-number>-<identifier>`.
+  3. Find the PR: `gh pr list --head dev-loop/<issue-number>-<identifier> --json number,url`.
+
+- If `<identifier>` is an **issue number** (`42`, `#42`):
+  1. Strip any `#` prefix.
+  2. Scan `tasks/*/README.md` files for one that references `#<number>` in its Traceability section. Extract the feature slug from the matching directory name.
+  3. Derive the branch name: `dev-loop/<issue-number>-<feature-slug>`.
+  4. Find the PR: `gh pr list --head dev-loop/<issue-number>-<feature-slug> --json number,url`.
+
+- If `<identifier>` is a **PR number** (`PR-15`, `!15`):
+  1. Strip any `PR-` or `!` prefix.
+  2. Fetch the PR's head branch: `gh pr view <number> --json headRefName`.
+  3. Parse the branch name `dev-loop/<issue-number>-<feature-slug>` to extract both the issue number and feature slug.
+  4. Verify `tasks/<feature-slug>/` exists.
+
+If resolution fails (no matching task directory, branch, or PR), report the error and stop.
+
+**Then continue with the common resume flow:**
+
+1. Read state from `tasks/<feature-slug>/`:
+   - `README.md` for traceability (issue number, REQ-ID, BDD feature path)
+   - `todo.md` for phase progress
+   - `log.md` for what's been done
+2. Check out the branch:
+   ```bash
+   git checkout dev-loop/<issue-number>-<feature-slug>
+   ```
+4. **Check for review gate feedback.** Read PR comments since the review gate post:
+   ```bash
+   gh pr view <pr-number> --comments --json comments
+   ```
+   - If feedback was left (not just `lgtm`), incorporate changes into the nano-spec and/or BDD feature file. Commit and push the updates.
+   - If no approval comment (`lgtm`) is found, warn the user that the review gate hasn't been approved yet and ask whether to proceed anyway.
+5. Remove the `dev-loop-review-gate` label:
+   ```bash
+   gh pr edit <pr-number> --remove-label dev-loop-review-gate
+   ```
+6. Skip directly to **Step 5 — Implement Phases** and continue from there.
+
+If the nano-spec task directory doesn't exist, report an error and stop.
+
 ## Workflow
 
-Execute the following 10 steps sequentially. After each step, update the nano-spec `log.md` with what was done.
+Execute the following 11 steps sequentially. After each step, update the nano-spec `log.md` with what was done. If `--resume` was provided, skip to Step 5.
 
 **When `--plan-only` is set, execute ONLY steps 1-4, then stop.**
 **When `--implement-only` is set, skip steps 1-4, execute steps 5-10.**
@@ -76,37 +127,62 @@ Find and claim a GitHub issue to work on. Extract traceability identifiers.
 3. If no issue is found, report "No `claude-ready` issues available." and stop.
 4. Invoke `issue-pick` skill with action `claim <number>` to claim the issue (adds `dev-loop-active` label, removes `claude-ready`, assigns to current user).
 5. Store the issue number, title, and body for use in subsequent steps.
-6. **Extract traceability identifiers:**
+6. **Derive the feature slug:** Generate a kebab-case slug from the issue title (max 50 chars). Strip any `REQ-XXX:` prefix before slugifying. Examples: "Add user authentication" → `user-authentication`, "REQ-003: Fix payment retry logic" → `fix-payment-retry-logic`. This slug is used for the task directory, branch name, and all references throughout the workflow.
+7. **Extract traceability identifiers:**
    - If the issue title matches `REQ-XXX: Title` (created by req-decompose), extract and store the REQ-ID (e.g., `REQ-001`).
    - If the issue body contains a `<!-- req-decompose source_req: REQ-XXX phase_dir: path -->` footer, extract and store the source REQ-ID and phase directory.
    - These identifiers are threaded through all subsequent steps.
 
 ---
 
-### Step 2 — Create Branch & Draft PR
+### Step 2 — Plan with nano-spec
+
+Create a detailed implementation plan with traceability.
+
+1. Invoke `/nano-spec create <feature-slug> "<issue title>: <issue body summary>"`.
+2. **Populate the Traceability section** in the generated `README.md`:
+   - **Source**: `#<issue-number>` (and `REQ-XXX` if available, linking to the phase directory if known)
+   - **BDD Feature**: *(to be populated after Step 4)*
+3. Review the generated `todo.md` and refine it:
+   - Break large tasks into phases (Phase 1, Phase 2, etc.) under the Implementation section.
+   - Each phase should be a cohesive unit of work that can be independently tested.
+   - Add research items for any unknowns.
+4. Review `doc.md` and populate the Open Questions section with anything unclear from the issue.
+5. **If there are open questions that cannot be resolved by reading the codebase or documentation** → Pause and ask the user. Do NOT proceed with unresolved questions that could lead to wrong implementation choices.
+
+---
+
+### Step 3 — Create Branch & Draft PR
 
 Set up the working branch and create a draft PR.
 
-1. Generate a branch name: `dev-loop/<issue-number>-<slug>` where `<slug>` is a kebab-case summary of the issue title (max 50 chars).
+1. Use the branch name `dev-loop/<issue-number>-<feature-slug>` with the slug derived in Step 1.
 2. Create and checkout the branch:
    ```bash
-   git checkout -b dev-loop/<issue-number>-<slug>
+   git checkout -b dev-loop/<issue-number>-<feature-slug>
    ```
 3. Push the branch:
    ```bash
-   git push -u origin dev-loop/<issue-number>-<slug>
+   git push -u origin dev-loop/<issue-number>-<feature-slug>
    ```
 4. Create a draft PR linking to the issue:
    ```bash
    gh pr create --draft --title "<issue title>" --body "Closes #<number>\n\nAutomated implementation by dev-loop agent."
    ```
    Add `--repo` if specified.
+5. Commit the nano-spec files from Step 2:
+   ```
+   git add tasks/<feature-slug>/
+   git commit -m "docs: add nano-spec plan for #<number> [REQ-XXX]"
+   ```
+   Include `[REQ-XXX]` only if a REQ-ID is available.
+6. Push the commit.
 
 ---
 
-### Step 3 — Write BDD Test Spec
+### Step 4 — Write BDD Test Spec
 
-Generate a BDD feature file as the first PR commit.
+Generate a BDD feature file from the issue's acceptance criteria.
 
 1. Invoke the `bdd-author` skill with action `write`, passing:
    - The issue title and body as context
@@ -115,38 +191,69 @@ Generate a BDD feature file as the first PR commit.
 2. Review the generated feature file to ensure:
    - Scenarios align with the issue's acceptance criteria
    - Traceability tags are present (`@REQ-XXX @issue-N` on the Feature line, `@AC-N` on each scenario)
-3. Store the feature file path for use in subsequent steps (nano-spec traceability, PR description).
-4. Commit the feature file:
+3. Store the feature file path for use in subsequent steps (PR description, proof).
+4. **Update the nano-spec** `README.md` Traceability section with the BDD feature file path.
+5. Commit the feature file and the nano-spec update:
    ```
-   git add <feature-file-path>
+   git add <feature-file-path> tasks/<feature-slug>/README.md
    git commit -m "test: add BDD feature spec for #<number> [REQ-XXX]"
    ```
    Include `[REQ-XXX]` in the commit message only if a REQ-ID is available.
-5. Push the commit.
+6. Push the commit.
 
 ---
 
-### Step 4 — Plan with nano-spec
+### Review Gate
 
-Create a detailed implementation plan with traceability.
+**Post the plan and BDD spec as a PR comment for human review, then stop.**
 
-1. Invoke `/nano-spec create dev-loop-<issue-number> "<issue title>: <issue body summary>"`.
-2. **Populate the Traceability section** in the generated `README.md`:
-   - **Source**: `#<issue-number>` (and `REQ-XXX` if available, linking to the phase directory if known)
-   - **BDD Feature**: path to the feature file from Step 3
-3. Review the generated `todo.md` and refine it:
-   - Break large tasks into phases (Phase 1, Phase 2, etc.) under the Implementation section.
-   - Each phase should be a cohesive unit of work that can be independently tested.
-   - Add research items for any unknowns.
-4. Review `doc.md` and populate the Open Questions section with anything unclear from the issue.
-5. **If there are open questions that cannot be resolved by reading the codebase or documentation** → Pause and ask the user. Do NOT proceed with unresolved questions that could lead to wrong implementation choices.
-6. Commit the nano-spec files:
+1. Build a summary comment containing:
+   - The nano-spec plan (`tasks/<feature-slug>/README.md` contents — background, goals, scope)
+   - The phased implementation plan (`todo.md` contents)
+   - The BDD feature file contents
+   - Any open questions from `doc.md`
+   - A note: *"Reply to this comment with feedback, or approve by commenting `lgtm`. Then resume with `/dev-loop --resume <feature-slug>`."*
+
+2. Post the comment on the draft PR:
+   ```bash
+   gh pr comment <pr-number> --body "$(cat <<'EOF'
+   ## 📋 Review Gate — Plan & BDD Spec
+
+   ### Nano-spec Plan
+   <README.md contents>
+
+   ### Implementation Phases
+   <todo.md contents>
+
+   ### BDD Feature Spec
+   ```gherkin
+   <feature file contents>
    ```
-   git add tasks/dev-loop-<issue-number>/
-   git commit -m "docs: add nano-spec plan for #<number> [REQ-XXX]"
+
+   ### Open Questions
+   <open questions from doc.md, or "None">
+
+   ---
+   **Please review the plan and BDD spec above.**
+   - Reply with feedback to request changes.
+   - Comment `lgtm` to approve.
+
+   Then resume implementation with:
    ```
-   Include `[REQ-XXX]` only if a REQ-ID is available.
-7. Push the commit.
+   /dev-loop --resume <feature-slug>
+   ```
+   EOF
+   )"
+   ```
+
+3. Add a `dev-loop-review-gate` label to the PR:
+   ```bash
+   gh pr edit <pr-number> --add-label dev-loop-review-gate
+   ```
+
+4. Report to the user that the review gate has been posted and provide the PR link. **Stop execution.** Do NOT proceed to Step 5.
+
+The user will review on GitHub, leave feedback or approve, then invoke `/dev-loop --resume <feature-slug>` to continue from Step 5.
 
 **If `--plan-only` is set, STOP HERE.** Report the following and exit:
 - Issue number and title
@@ -202,7 +309,7 @@ Repeat for all phases.
 
 Turn the specification feature file into executable tests.
 
-1. Invoke the `bdd-author` skill with action `automate`, passing the feature file path from Step 3.
+1. Invoke the `bdd-author` skill with action `automate`, passing the feature file path from Step 4.
 2. Fill in the step definition bodies with real assertions based on the implementation from Step 5.
 3. Commit the step definitions:
    ```
@@ -270,7 +377,27 @@ Review the PR for quality before submission.
 
 ---
 
-### Step 10 — Submit for Review
+### Step 10 — Generate Proof
+
+Create an executable proof document demonstrating the feature works.
+
+1. Invoke the `showboat-proof` skill with action `prove`, passing:
+   - The issue title and body as feature context
+   - The BDD feature file path from Step 4 (so proof sections map to acceptance criteria)
+   - The REQ-ID and issue number for traceability
+2. If the implementation includes a web UI, the skill will use rodney for browser automation and screenshots. Otherwise it will use CLI commands and captured output.
+3. Review the generated proof document to ensure it meaningfully demonstrates the feature — not just "it runs without errors."
+4. Commit the proof:
+   ```
+   git add proofs/<feature-slug>/
+   git commit -m "docs: add showboat proof for #<number> [REQ-XXX]"
+   ```
+   Include `[REQ-XXX]` only if a REQ-ID is available.
+5. Push the commit.
+
+---
+
+### Step 11 — Submit for Review
 
 Finalize the PR for human review.
 
@@ -283,8 +410,9 @@ Finalize the PR for human review.
    - **Requirement**: REQ-XXX (if available, otherwise omit this line)
    - **Issue**: #<issue-number>
    - **Phase**: <phase directory path> (if known from req-decompose footer, otherwise omit)
-   - **Nano-spec**: `tasks/dev-loop-<issue-number>/`
+   - **Nano-spec**: `tasks/<feature-slug>/`
    - **BDD Feature**: `<path to feature file>`
+   - **Proof**: `proofs/<feature-slug>/README.md`
 
    ## Summary
    <bullet points of what was implemented>
@@ -295,6 +423,10 @@ Finalize the PR for human review.
    ## Test Results
    - BDD tests: <pass/fail>
    - Full suite: <pass/fail>
+
+   ## Proof
+   - Proof document: `proofs/<feature-slug>/README.md`
+   - Re-verify with: `showboat verify proofs/<feature-slug>/README.md`
 
    ## Self-Review
    <summary of findings addressed>

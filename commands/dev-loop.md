@@ -22,7 +22,7 @@ Parse the arguments from `$ARGUMENTS` and hand off to the **dev-loop agent**.
 
 1. If `--repo` is provided, pass it as the target repository.
 2. If `--issue` is provided, pass it as the target issue number.
-3. Invoke the dev-loop agent to execute its full 10-step workflow.
+3. Invoke the dev-loop agent to execute its full workflow.
 
 ### With `--review-plan` (pause for human review)
 
@@ -66,4 +66,5 @@ Parse the arguments from `$ARGUMENTS` and hand off to the **dev-loop agent**.
 |-------|---------|
 | `claude-ready` | Issue is ready for dev-loop to pick up |
 | `dev-loop-active` | Dev-loop is currently working on this issue |
+| `dev-loop-review-gate` | PR is paused at review gate, awaiting human review of plan and BDD spec |
 | `dev-loop-review` | Dev-loop finished, PR awaits human review |
