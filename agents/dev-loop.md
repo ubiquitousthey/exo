@@ -102,16 +102,16 @@ If resolution fails (no matching task directory, branch, or PR), report the erro
    ```bash
    gh pr edit <pr-number> --remove-label dev-loop-review-gate
    ```
-6. Skip directly to **Step 5 — Implement Phases** and continue from there.
+6. Skip directly to **Step 6 — Implement Phases** and continue from there.
 
 If the nano-spec task directory doesn't exist, report an error and stop.
 
 ## Workflow
 
-Execute the following 11 steps sequentially. After each step, update the nano-spec `log.md` with what was done. If `--resume` was provided, skip to Step 5.
+Execute the following 12 steps sequentially. After each step, update the nano-spec `log.md` with what was done. If `--resume` was provided, skip to Step 6.
 
-**When `--plan-only` is set, execute ONLY steps 1-4, then stop.**
-**When `--implement-only` is set, skip steps 1-4, execute steps 5-10.**
+**When `--plan-only` is set, execute ONLY steps 1-5, then stop.**
+**When `--implement-only` is set, skip steps 1-5, execute steps 6-11.**
 
 ---
 
@@ -203,6 +203,60 @@ Generate a BDD feature file from the issue's acceptance criteria.
 
 ---
 
+### Step 5 — UI Design (Conditional)
+
+If the feature involves UI work, generate designs with superdesign before the review gate so reviewers can assess the visual direction alongside the plan.
+
+#### Detection
+
+Determine if the feature requires UI work by checking:
+
+1. **Explicit design reference**: If the GitHub issue body contains a link to an existing superdesign file (e.g., a path like `.superdesign/design_iterations/*.html` or a reference to a superdesign project), use that design directly — skip generation and proceed to step 5d.
+2. **Issue signals**: The issue title or body mentions UI, frontend, page, screen, dashboard, form, component, layout, modal, dialog, widget, or similar visual terms.
+3. **Project signals**: The project's `CLAUDE.md` references superdesign, or a `.superdesign/` directory exists in the project.
+4. **BDD signals**: The BDD feature file from Step 4 contains scenarios involving user-visible interactions (clicking, viewing, navigating, filling forms).
+
+If none of these signals are present, **skip this step entirely** and proceed to the Review Gate.
+
+#### 5a. Check Prerequisites
+
+Verify superdesign is available:
+- Check if the project's `CLAUDE.md` has superdesign configuration or rules.
+- Check if a `.superdesign/` directory exists in the project.
+- If neither exists, note in `log.md` that superdesign is not configured for this project and skip this step.
+
+#### 5b. Gather Design Context
+
+Collect inputs for the design prompt:
+- The issue title and acceptance criteria
+- Relevant BDD scenarios (especially those describing what the user should see)
+- Existing UI patterns in the project (scan for similar pages/components)
+- Any design references or mockup links in the issue body
+
+#### 5c. Generate Designs
+
+Invoke superdesign to generate UI designs:
+1. Craft a design prompt from the gathered context, describing the screen(s) or component(s) needed.
+2. Use superdesign to generate designs. Superdesign creates HTML files in `.superdesign/design_iterations/` with Tailwind CSS styling.
+3. Designs are generated as `{design_name}_{n}.html` files with variations for review.
+
+#### 5d. Update Nano-spec with Designs
+
+1. Add a **UI Design** section to the nano-spec `README.md` documenting:
+   - Design file paths (relative to project root)
+   - Brief description of what each design shows
+   - If an existing design was referenced from the issue, note it as the source design
+2. Update `todo.md` implementation phases to reference the designs — add notes about which design to implement in the relevant phase.
+3. Commit the designs and nano-spec updates:
+   ```
+   git add .superdesign/design_iterations/ tasks/<feature-slug>/
+   git commit -m "design: add superdesign UI mockups for #<number> [REQ-XXX]"
+   ```
+   Include `[REQ-XXX]` only if a REQ-ID is available.
+4. Push the commit.
+
+---
+
 ### Review Gate
 
 **Post the plan and BDD spec as a PR comment for human review, then stop.**
@@ -211,6 +265,7 @@ Generate a BDD feature file from the issue's acceptance criteria.
    - The nano-spec plan (`tasks/<feature-slug>/README.md` contents — background, goals, scope)
    - The phased implementation plan (`todo.md` contents)
    - The BDD feature file contents
+   - UI design file paths and descriptions (if Step 5 generated designs)
    - Any open questions from `doc.md`
    - A note: *"Reply to this comment with feedback, or approve by commenting `lgtm`. Then resume with `/dev-loop --resume <feature-slug>`."*
 
@@ -229,6 +284,9 @@ Generate a BDD feature file from the issue's acceptance criteria.
    ```gherkin
    <feature file contents>
    ```
+
+   ### UI Designs
+   <If Step 5 produced designs, list design file paths and descriptions from the nano-spec UI Design section. If no designs, omit this section.>
 
    ### Open Questions
    <open questions from doc.md, or "None">
@@ -251,47 +309,49 @@ Generate a BDD feature file from the issue's acceptance criteria.
    gh pr edit <pr-number> --add-label dev-loop-review-gate
    ```
 
-4. Report to the user that the review gate has been posted and provide the PR link. **Stop execution.** Do NOT proceed to Step 5.
+4. Report to the user that the review gate has been posted and provide the PR link. **Stop execution.** Do NOT proceed to Step 6.
 
-The user will review on GitHub, leave feedback or approve, then invoke `/dev-loop --resume <feature-slug>` to continue from Step 5.
+The user will review on GitHub, leave feedback or approve, then invoke `/dev-loop --resume <feature-slug>` to continue from Step 6.
 
 **If `--plan-only` is set, STOP HERE.** Report the following and exit:
 - Issue number and title
 - Branch name
 - Nano-spec directory: `tasks/dev-loop-<issue-number>/`
 - BDD feature file path
+- UI design file paths (if Step 5 generated designs)
 - Summary of planned phases from `todo.md` (phase names and descriptions)
 
 ---
 
-### Step 5 — Implement Phases
+### Step 6 — Implement Phases
 
 **If `--implement-only` is set, start here.** First, recover state:
 1. Read `tasks/dev-loop-<issue-number>/todo.md` to understand the implementation phases.
 2. Read `tasks/dev-loop-<issue-number>/log.md` to understand what's been done so far.
 3. Find and check out the existing branch: `git branch -a | grep dev-loop/<issue-number>` then `git checkout <branch>`.
-4. Proceed with implementation.
+4. If the nano-spec `README.md` has a UI Design section, read the referenced design files to understand the target visual implementation.
+5. Proceed with implementation.
 
 For each phase defined in `todo.md`, execute the following sub-steps:
 
-#### 5a. Research
+#### 6a. Research
 - Read relevant documentation, explore the codebase, and resolve unknowns for this phase.
 - If the project has existing patterns for what you're building, follow them.
 
-#### 5b. Implement
+#### 6b. Implement
 - Write the code for this phase.
 - Follow existing project conventions (code style, file organization, naming).
 - Keep changes focused — only implement what's in the current phase.
 
-#### 5c. JIT Test
+#### 6c. JIT Test
 - Run the jit-test agent on this phase's staged changes.
 - If jit-test finds true bugs, fix them before proceeding.
 
-#### 5d. Log
+#### 6d. Log
 - Update nano-spec `log.md` with what was done in this phase via `/nano-spec update`.
 - Check off completed items in `todo.md`.
 
-#### 5e. Commit
+#### 6e. Commit
 - Stage and commit the phase's work:
   ```
   git add <changed-files>
@@ -305,12 +365,12 @@ Repeat for all phases.
 
 ---
 
-### Step 6 — Automate BDD Tests
+### Step 7 — Automate BDD Tests
 
 Turn the specification feature file into executable tests.
 
 1. Invoke the `bdd-author` skill with action `automate`, passing the feature file path from Step 4.
-2. Fill in the step definition bodies with real assertions based on the implementation from Step 5.
+2. Fill in the step definition bodies with real assertions based on the implementation from Step 6.
 3. Commit the step definitions:
    ```
    git add <step-definitions-path>
@@ -320,12 +380,12 @@ Turn the specification feature file into executable tests.
 
 ---
 
-### Step 7 — BDD Fix/Test Loop
+### Step 8 — BDD Fix/Test Loop
 
 Run BDD tests and iterate on failures.
 
 1. Run the BDD tests using the project's test runner.
-2. If all tests pass, proceed to Step 8.
+2. If all tests pass, proceed to Step 9.
 3. If tests fail:
    a. Read the failure output carefully.
    b. Determine if the failure is in the test code or the implementation.
@@ -339,13 +399,13 @@ Run BDD tests and iterate on failures.
 
 ---
 
-### Step 8 — Full Test Suite
+### Step 9 — Full Test Suite
 
 Run all project tests to catch regressions.
 
 1. Detect the project's test runner (look for `pytest`, `npm test`, `cargo test`, `go test`, `mix test`, etc.).
 2. Run the full test suite.
-3. If all tests pass, proceed to Step 9.
+3. If all tests pass, proceed to Step 10.
 4. If tests fail:
    a. Identify whether failures are caused by this PR's changes or are pre-existing.
    b. Fix failures caused by this PR.
@@ -360,7 +420,7 @@ Run all project tests to catch regressions.
 
 ---
 
-### Step 9 — Self-Review
+### Step 10 — Self-Review
 
 Review the PR for quality before submission.
 
@@ -377,7 +437,7 @@ Review the PR for quality before submission.
 
 ---
 
-### Step 10 — Generate Proof
+### Step 11 — Generate Proof
 
 Create an executable proof document demonstrating the feature works.
 
@@ -397,7 +457,7 @@ Create an executable proof document demonstrating the feature works.
 
 ---
 
-### Step 11 — Submit for Review
+### Step 12 — Submit for Review
 
 Finalize the PR for human review.
 
