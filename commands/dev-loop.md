@@ -34,7 +34,7 @@ Parse the arguments from `$ARGUMENTS` and hand off to the **dev-loop agent**.
    - Tell the user: "The plan is ready for review. Key files: `tasks/dev-loop-<N>/doc.md` (decisions), `tasks/dev-loop-<N>/todo.md` (implementation phases), the BDD feature file, and any UI designs in `.superdesign/design_iterations/`."
    - Ask: "Review the plan and let me know when you're ready to proceed, or tell me what to change."
 4. **Wait for the user's response.** Do NOT proceed automatically.
-   - If the user says to proceed (e.g., "go", "looks good", "implement it"), invoke the dev-loop agent with `--implement-only --issue <N>` (plus `--repo` if provided). This runs steps 6-12.
+   - If the user says to proceed (e.g., "go", "looks good", "implement it"), invoke the dev-loop agent with `--implement-only --issue <N>` (plus `--repo` if provided). This runs steps 6-13.
    - If the user requests changes, make the changes to the nano-spec files, then ask again if they're ready to proceed.
    - If the user says to stop, report status and stop.
 
@@ -47,14 +47,15 @@ Parse the arguments from `$ARGUMENTS` and hand off to the **dev-loop agent**.
 4. Write BDD test specifications
 5. Generate UI designs with superdesign (if the feature involves UI)
 
-**Steps 6-12 (implementation — run with `--implement-only`):**
+**Steps 6-13 (implementation — run with `--implement-only`):**
 6. Implement in phases with JIT testing
-7. Automate BDD tests
-8. Run and fix tests
-9. Run the full test suite
-10. Self-review the PR
-11. Generate proof
-12. Submit for human review
+7. UI fidelity check (static template audit + visual comparison)
+8. Automate BDD tests
+9. Run and fix tests
+10. Run the full test suite
+11. Self-review the PR
+12. Generate proof
+13. Submit for human review
 
 ## Prerequisites
 
