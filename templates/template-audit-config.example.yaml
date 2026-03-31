@@ -1,0 +1,71 @@
+# Template Auditor Configuration Example
+#
+# This file defines the design system rules for your project.
+# Copy to your project as `.template-audit.yaml` and customize.
+
+templates_dir: "app/"
+base_template: "app/templates/base.html"
+file_glob: "**/*.html"
+
+# Hex colors that are part of your design system (allowed in Tailwind bracket notation)
+allowed_colors:
+  - "#0d1421"   # background
+  - "#111d2e"   # surface
+  - "#162438"   # surface-2
+  - "#1c2e48"   # border
+  - "#0a1420"   # input-bg
+  - "#243555"   # input-border
+  - "#e8ddc8"   # text-cream
+  - "#8a9bb5"   # text-secondary
+  - "#546880"   # text-muted
+  - "#c09a3a"   # brass accent
+  - "#9a7a28"   # brass hover
+
+# Templates that define their own :root CSS (not extending base)
+standalone_templates:
+  - "app/meetings/templates/participate.html"
+  - "app/meetings/templates/chair.html"
+  - "app/meetings/templates/display.html"
+
+rules:
+  # Check for hardcoded hex colors outside CSS definitions
+  hardcoded_colors: true
+
+  # Check for ARIA landmarks in base template
+  aria_landmarks: true
+
+  # Verify elements use specific utility classes
+  required_classes:
+    - name: "button-classes"
+      element_pattern: '<button[^>]*class="[^"]*"[^>]*>'
+      classes: ["btn-brass", "btn-ghost"]
+
+  # Verify utility classes exist in base template
+  base_classes:
+    - name: "shared-utilities"
+      classes:
+        - "btn-brass"
+        - "btn-ghost"
+        - "status-badge"
+        - "section-header"
+        - "auth-card"
+        - "dark-table"
+
+  # Prevent local redefinition of shared classes
+  no_redefinition:
+    - name: "no-local-alerts"
+      classes: ["alert-warn", "alert-error", "alert-success"]
+    - name: "no-local-section-header"
+      classes: ["section-header"]
+
+  # Verify CSS tokens match between base and standalone templates
+  token_sync:
+    - name: "participate-sync"
+      standalone: "app/meetings/templates/participate.html"
+
+  # Forbid inline styles that duplicate shared classes
+  inline_styles:
+    - name: "no-inline-button-bg"
+      patterns:
+        - 'style="[^"]*background:\s*var\(--brass\)'
+        - 'style="[^"]*background:\s*#c09a3a'
