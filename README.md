@@ -52,6 +52,7 @@ The **dev-loop** agent orchestrates these skills into an end-to-end issue-to-PR 
 
 | Skill | Description |
 |-------|-------------|
+| [`mutate`](skills/mutate/SKILL.md) | Mutation testing — validate test quality by checking if tests catch injected faults |
 | [`req-decompose`](skills/req-decompose/SKILL.md) | Decompose requirements into implementable GitHub issues |
 
 ## Agents

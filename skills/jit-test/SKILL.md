@@ -76,6 +76,22 @@ Classify each generated test as **durable** or **ephemeral**:
 - Tightly coupled to the specific diff structure
 - Would break on a refactor even if behavior is preserved
 
+#### 6b. Mutation Verification (optional)
+
+If durable tests were identified, verify their detection power with real mutation testing:
+
+1. Invoke the `mutate` skill with action `diff`, passing:
+   - `$BASE_REF`: the ref before this phase's changes (typically `HEAD~1` or the last phase commit)
+   - `$TEST_FILES`: only the durable test files from this run
+2. Review the mutation results:
+   - If all mutants are killed → durable tests have strong detection power, proceed.
+   - If actionable mutants survive → the durable test has a gap. Strengthen its assertions to cover the surviving mutant, then re-classify:
+     - If the test can be strengthened → fix it, re-run mutation, keep as durable.
+     - If the gap can't be closed without making the test brittle → downgrade to ephemeral.
+3. Skip this stage if no mutation testing tool is installed for the project's language. Log a note: "Mutation verification skipped — no mutation tool available."
+
+This stage is fast because it's scoped to a small diff and a small test set.
+
 #### 7. Reporting
 Present results:
 

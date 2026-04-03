@@ -43,6 +43,7 @@ Execute all implementation phases from the beginning.
 ##### c. JIT Test
 - Invoke the `jit-test` skill with action `run` on this phase's staged changes.
 - If jit-test finds true bugs, fix them before proceeding.
+- jit-test automatically verifies durable tests via mutation testing (if a mutation tool is available), strengthening assertions where needed.
 - If jit-test identifies durable tests worth keeping, invoke `jit-test promote` to move them into the project's permanent test suite.
 
 ##### d. Log
