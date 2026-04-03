@@ -41,8 +41,9 @@ Execute all implementation phases from the beginning.
 - Keep changes focused — only implement what's in the current phase.
 
 ##### c. JIT Test
-- Run the jit-test agent on this phase's staged changes.
+- Invoke the `jit-test` skill with action `run` on this phase's staged changes.
 - If jit-test finds true bugs, fix them before proceeding.
+- If jit-test identifies durable tests worth keeping, invoke `jit-test promote` to move them into the project's permanent test suite.
 
 ##### d. Log
 - Update nano-spec `log.md` with what was done in this phase via the `nano-spec` skill (`update` action).

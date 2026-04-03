@@ -58,8 +58,8 @@ Thread traceability through every artifact:
 - **Step fails** → Log the error in nano-spec `log.md`, attempt 1 retry with an adjusted approach.
 - **Second failure** → Pause and ask the user for guidance.
 - **Network/API errors** → Retry with backoff (up to 3 attempts).
-- **BDD test loop** → Max 5 fix iterations (handled by `bdd-fix-loop` skill).
-- **UI fidelity loop** → Max 3 fix iterations (handled by `ui-fidelity` skill).
+- **BDD test loop** → Max 5 fix iterations (handled by `test-loop bdd`).
+- **UI fidelity loop** → Max 3 fix iterations (handled by `ui-verify check`).
 
 ## Resume Mode
 
@@ -207,7 +207,7 @@ Pass: nano-spec path, issue number, REQ-ID (if available), design paths (if Step
 
 ### Step 7 — UI Fidelity Check (Conditional)
 
-Invoke the `ui-fidelity` skill with action `check`.
+Invoke the `ui-verify` skill with action `check`.
 
 Pass: nano-spec path, base branch (`main` or as appropriate), issue number, REQ-ID (if available).
 
@@ -227,7 +227,7 @@ Invoke the `bdd-author` skill with action `automate`.
 
 ### Step 9 — BDD Fix/Test Loop
 
-Invoke the `bdd-fix-loop` skill with action `run`.
+Invoke the `test-loop` skill with action `bdd`.
 
 Pass: feature file path, issue number.
 
@@ -237,7 +237,7 @@ The skill handles test execution, failure analysis, fix iterations (max 5), and 
 
 ### Step 10 — Full Test Suite
 
-Invoke the `test-suite` skill with action `run`.
+Invoke the `test-loop` skill with action `full`.
 
 Pass: issue number.
 
@@ -247,9 +247,9 @@ The skill handles runner detection, execution, regression analysis, fix iteratio
 
 ### Step 11 — Self-Review
 
-Invoke the **self-review agent** on the current PR diff.
+Invoke the `code-review` skill with action `self`.
 
-1. Read the self-review report.
+1. Read the review report.
 2. Address all **Critical** findings — these must be fixed.
 3. Address **Suggestions** where the fix is straightforward and clearly beneficial.
 4. For Suggestions not addressed, note the justification.
