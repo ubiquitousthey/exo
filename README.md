@@ -5,10 +5,19 @@ Personal developer tooling monorepo. Centralizes reusable Claude Code skills, pl
 ## Install as a Claude Code plugin
 
 ```bash
-claude plugin add /path/to/exo
+# Register the marketplace (one-time)
+claude plugin marketplace add /path/to/exo
+
+# Install the plugin
+claude plugin install exo@exo
 ```
 
-This makes all skills, commands, and agents available in any project.
+This makes all skills and commands available in any project. To update after pulling changes:
+
+```bash
+claude plugin marketplace update exo
+claude plugin update exo@exo
+```
 
 ## Repository structure
 
