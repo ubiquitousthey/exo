@@ -83,6 +83,7 @@ Commands are slash-command entry points that parse arguments and delegate to age
 | Command | Description |
 |---------|-------------|
 | `/dev-loop` | Autonomous issue-to-PR loop with optional `--review-plan` for human checkpoints |
+| `/req-decompose` | Decompose requirements into GitHub issues (scan, create, status) |
 | `/ui-audit` | Run static template analysis for design system compliance |
 | `/showboat-proof` | Generate executable proof documents |
 
