@@ -2,6 +2,5 @@
   "name": "exo",
   "description": "Personal developer tooling - Claude Code skills, commands, agents, and hooks.",
   "commands": ["./commands/"],
-  "skills": ["./skills/"],
-  "agents": ["./agents/"]
+  "skills": ["./skills/"]
 }
