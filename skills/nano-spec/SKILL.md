@@ -5,7 +5,7 @@ description: Manage task specifications with nano-spec (create, status, update).
 
 # nano-spec: Manage task specifications
 
-A lightweight task specification tool with 4 documents (README, todo, doc, log).
+A lightweight task specification tool that scales documentation to task complexity. Small tasks get minimal docs; complex tasks get full specs.
 
 ## Arguments
 - $ACTION: The action to perform (create, status, update)
@@ -19,10 +19,75 @@ Create a new nano-spec task pack.
 
 **Usage**: `/nano-spec create my-task "Task description"`
 
-1. Create folder `tasks/$TASK_NAME/` if tasks/ exists, otherwise create at project root
-2. Generate 4 files based on the description, following the exact structure below:
+#### Step 1 — Assess Complexity
 
-### README.md
+Before generating any files, evaluate the task to determine its size:
+
+| Signal | Small | Medium | Large |
+|--------|-------|--------|-------|
+| Files likely changed | 1-3 | 4-10 | 10+ |
+| New concepts introduced | 0 | 1-2 | 3+ |
+| External integrations | 0 | 0-1 | 2+ |
+| Data model changes | none | minor | new models or migrations |
+| Cross-cutting concerns | none | 1 (e.g., auth, logging) | multiple |
+| Ambiguity in requirements | low | some open questions | significant unknowns |
+
+Classify as **small**, **medium**, or **large**.
+
+#### Step 2 — Generate Files
+
+Create folder `tasks/$TASK_NAME/` if tasks/ exists, otherwise create at project root.
+
+Generate files based on complexity:
+
+| File | Small | Medium | Large |
+|------|-------|--------|-------|
+| `README.md` | Minimal | Standard | Full |
+| `todo.md` | Always | Always | Always |
+| `doc.md` | Skip | Only if decisions or open questions exist | Full |
+| `log.md` | Skip | Always | Always |
+
+---
+
+#### README.md
+
+**Small tasks** — brief, no boilerplate sections:
+```markdown
+# {Task Name}
+
+{1-2 sentences: what and why}
+
+## Goals
+- {Goal}
+
+## Traceability
+- **Source**: {#issue or REQ-ID}
+```
+
+**Medium tasks** — add scope and dependencies:
+```markdown
+# {Task Name}
+
+## Background
+{2-3 sentences: what problem, why now}
+
+## Goals
+- {Goal 1}
+- {Goal 2}
+
+## Scope
+- In: {what's included}
+- Out: {what's explicitly excluded}
+
+## Dependencies
+- {Dependency, if any}
+
+## Traceability
+- **Source**: {#issue or REQ-ID}
+- **BDD Feature**: {path, if any}
+```
+
+**Large tasks** — full spec with resources:
 ```markdown
 # {Task Name}
 
@@ -42,29 +107,44 @@ Create a new nano-spec task pack.
 - {What's NOT included - be explicit}
 
 ## Dependencies
-- [ ] {Dependency 1 - e.g., another task, external API, team decision}
+- [ ] {Dependency 1}
 
 ## Traceability
-- **Source**: {Link to originating issue, requirement, or request — e.g., #42, REQ-001}
-- **BDD Feature**: {Path to associated feature file, if any}
+- **Source**: {#issue or REQ-ID}
+- **BDD Feature**: {path, if any}
 
 ## Resources
-- {Link to related docs}
-- {Link to external references}
+- {Links to related docs or references}
 ```
 
-### todo.md
+---
+
+#### todo.md
+
+Always generated. Scale the detail:
+
+**Small tasks:**
 ```markdown
 # TODO
-
-## Research
-- [ ] {Research item 1}
-- [ ] {Research item 2}
 
 ## Implementation
 - [ ] {Task 1}
 - [ ] {Task 2}
-- [ ] {Task 3}
+
+## Acceptance Criteria
+- [ ] {Criterion 1}
+```
+
+**Medium/Large tasks:**
+```markdown
+# TODO
+
+## Research
+- [ ] {Research item, if unknowns exist}
+
+## Implementation
+- [ ] {Phase 1: description}
+- [ ] {Phase 2: description}
 
 ## Verification
 - [ ] {Verification step}
@@ -75,21 +155,29 @@ Create a new nano-spec task pack.
 
 ### Must Have
 - [ ] {Criterion 1 - specific, measurable}
-- [ ] {Criterion 2}
 
 ### Nice to Have
 - [ ] {Optional criterion}
-
-### Out of Scope
-- {Explicitly NOT part of this task's acceptance}
 ```
 
-### doc.md
+---
+
+#### doc.md
+
+**Skip for small tasks.** For medium tasks, only create if there are key decisions to record or open questions to resolve. For large tasks, always create.
+
+**Do NOT include code blocks** unless the task involves:
+- Complex algorithmic logic that needs upfront design
+- Complex data modeling (new schemas, migrations, entity relationships)
+- Non-obvious interface contracts between systems
+
+When code is warranted, keep it minimal — pseudocode or type signatures, not full implementations.
+
 ```markdown
 # {Task Name} - Technical Document
 
 ## Summary
-{One paragraph summary of the solution/outcome}
+{One paragraph summary of the approach}
 
 ## Key Decisions
 
@@ -98,36 +186,21 @@ Create a new nano-spec task pack.
 - **Chosen**: B
 - **Rationale**: {Why B?}
 
-## Technical Details
-
-### Architecture / Data Flow
-```
-{Diagram using ASCII or describe the flow}
-```
-
-### Interfaces / Schema
-```typescript
-// Key interfaces if applicable
-interface Example {
-  id: string;
-  name: string;
-}
-```
-
-### Implementation Notes
-- {Note 1}
-- {Note 2}
-
 ## Open Questions
-- [ ] {Unresolved question 1}
-- [ ] {Unresolved question 2}
+- [ ] {Unresolved question}
 
 ## References
-- {Link 1}
-- {Link 2}
+- {Link}
 ```
 
-### log.md
+Add a **Technical Details** section with architecture diagrams or schema definitions only when the task involves complex data modeling or multi-component coordination. Omit it otherwise.
+
+---
+
+#### log.md
+
+**Skip for small tasks.** For medium/large tasks:
+
 ```markdown
 # Development Log
 
@@ -136,29 +209,24 @@ interface Example {
 ### Done
 - Task created
 
-### In Progress
-- {What's ongoing}
-
-### Blocked
-- {What's stuck and why}
-
 ### Notes
-- {Discoveries, learnings, things to remember}
+- {Discoveries, learnings}
+```
 
 ---
-
-<!-- Copy the template above for each day -->
-```
 
 ### Output Format (create)
 
 After creating files, summarize:
 ```
 Created nano-spec: tasks/$TASK_NAME/
-- README.md  (background, goals, scope)
+Complexity: small | medium | large
+
+Files:
+- README.md  (background, goals)
 - todo.md    (X tasks, Y acceptance criteria)
-- doc.md     (technical decisions template)
-- log.md     (initialized)
+- doc.md     (technical decisions)     ← if generated
+- log.md     (initialized)            ← if generated
 
 Next: Review and refine the generated spec
 ```
@@ -170,11 +238,11 @@ Show current progress of a task.
 
 **Usage**: `/nano-spec status my-task`
 
-1. Read `tasks/$TASK_NAME/todo.md` and `log.md`
+1. Read `tasks/$TASK_NAME/todo.md` and `log.md` (if exists)
 2. Summarize:
    - Completed tasks vs total
    - Current blockers (if any)
-   - Last log entry date
+   - Last log entry date (if log exists)
 
 ---
 
@@ -185,4 +253,4 @@ Update an existing nano-spec.
 
 1. Read existing files in `tasks/$TASK_NAME/`
 2. Make requested updates
-3. Add entry to log.md with today's date
+3. Add entry to log.md with today's date (create log.md if it doesn't exist and the update warrants it)
