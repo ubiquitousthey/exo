@@ -87,6 +87,16 @@ Commands are slash-command entry points that parse arguments and delegate to age
 | `/ui-audit` | Run static template analysis for design system compliance |
 | `/showboat-proof` | Generate executable proof documents |
 
+## Hooks
+
+The plugin includes hooks that run automatically during Claude Code sessions.
+
+| Hook | Event | Description |
+|------|-------|-------------|
+| `check-greppy.sh` | `PreToolUse` (Agent, Grep, Glob) | Ensures the [greppy](https://github.com/KBLCode/greppy) daemon is running before search operations. Auto-starts if stopped. Runs once per session per tool type. |
+
+Hooks require greppy to be installed (`brew install greppy` or see greppy docs). If greppy is not installed, the hook silently skips.
+
 ## Dev-loop workflow
 
 The dev-loop agent drives features from issue to PR in 13 steps, with every step backed by a standalone skill:

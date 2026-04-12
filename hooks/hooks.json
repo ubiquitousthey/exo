@@ -1,0 +1,39 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Agent",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/check-greppy.sh",
+            "statusMessage": "Checking greppy daemon...",
+            "once": true
+          }
+        ]
+      },
+      {
+        "matcher": "Grep",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/check-greppy.sh",
+            "statusMessage": "Checking greppy daemon...",
+            "once": true
+          }
+        ]
+      },
+      {
+        "matcher": "Glob",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/check-greppy.sh",
+            "statusMessage": "Checking greppy daemon...",
+            "once": true
+          }
+        ]
+      }
+    ]
+  }
+}
