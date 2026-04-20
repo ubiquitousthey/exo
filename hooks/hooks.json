@@ -33,6 +33,16 @@
             "once": true
           }
         ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/pre-push-claude.sh",
+            "statusMessage": "Running pre-push checks..."
+          }
+        ]
       }
     ]
   }

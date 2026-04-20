@@ -103,9 +103,24 @@ If resolution fails (no matching task directory, branch, or PR), report the erro
 
 If the nano-spec task directory doesn't exist, report an error and stop.
 
+## Model Routing
+
+Not all steps require the same level of reasoning. Dispatch each step as a sub-agent using the Agent tool's `model` parameter to balance cost and capability.
+
+| Model | Steps | Rationale |
+|-------|-------|-----------|
+| **opus** | 2 (nano-spec plan), 4 (BDD spec), 5 (UI design), 6 (implement), 11 (self-review) | Architectural decisions, spec authoring, complex implementation, critical analysis |
+| **sonnet** | 1 (pick issue), 3 (branch/PR), 7 (UI fidelity), 8 (automate BDD), 9 (BDD test loop), 10 (full test suite), 12 (proof), 13 (submit PR) | Mechanical execution, running commands, following established patterns |
+
+**How to apply:** For each step, spawn a sub-agent via the Agent tool with the appropriate `model` parameter. Pass the full skill invocation instructions and all required context (issue number, feature slug, paths, REQ-ID, etc.) in the agent prompt. The sub-agent executes the step and returns its results, which you use to continue the workflow.
+
+**Override:** If a sonnet-routed step fails twice due to reasoning limitations (not test failures or API errors), retry it with opus.
+
 ## Workflow
 
 Execute the following 13 steps sequentially. After each step, update the nano-spec `log.md` with what was done. If `--resume` was provided, skip to Step 6.
+
+**Dispatch each step as a sub-agent using the model specified in the Model Routing table above.**
 
 **When `--plan-only` is set, execute ONLY steps 1-5, then stop.**
 **When `--implement-only` is set, skip steps 1-5, execute steps 6-13.**
