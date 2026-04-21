@@ -1,6 +1,5 @@
 {
-  "hooks": {
-    "PreToolUse": [
+  "PreToolUse": [
       {
         "matcher": "Agent",
         "hooks": [
