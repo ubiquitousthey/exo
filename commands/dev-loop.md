@@ -12,7 +12,7 @@ Autonomous issue-to-PR development loop. Picks up a GitHub issue, plans, impleme
 
 - `--repo owner/repo` — Target repository. Defaults to the current repo.
 - `--issue N` — Work on a specific issue number. If omitted, picks the oldest open issue labeled `claude-ready`.
-- `--review-plan` — Pause after planning and UI design (step 6, before the Review Gate) so the user can review the realignment, plan, and BDD spec before implementation begins.
+- `--review-plan` — Pause at the Review Gate (after step 10) so the user can review the realignment, triage, plan, BDD spec or reproduction test, UI designs, and answer the top-5 decisions interview before implementation begins.
 
 ## Behavior
 
@@ -27,40 +27,48 @@ Parse the arguments from `$ARGUMENTS` and hand off to the **dev-loop agent**.
 ### With `--review-plan` (pause for human review)
 
 1. Parse `--repo` and `--issue` as above.
-2. Invoke the dev-loop agent with `--plan-only` added to the arguments. This runs steps 1-6 only (pick issue, realign with current system, plan with nano-spec, create branch and draft PR, write BDD spec, generate UI designs if needed) and then stops at the Review Gate.
+2. Invoke the dev-loop agent with `--plan-only` added to the arguments. This runs steps 1-10 (pick issue, realign with current system, triage, plan with nano-spec, create branch and draft PR, write BDD spec or bug reproduction test based on triage, generate UI designs if needed, formulate top-5 decisions interview, post the Review Gate) and then stops.
 3. When the agent returns, present the plan to the user:
    - Show the issue title and number
    - Show the realignment summary (drift detected, core need, what changed in the issue body)
+   - Show the triage track and flags
    - Show the nano-spec task directory path (`tasks/<feature-slug>/`)
-   - Tell the user: "The plan is ready for review. Key files: `tasks/<feature-slug>/doc.md` (decisions), `tasks/<feature-slug>/todo.md` (implementation phases), the BDD feature file, and any UI designs in `.superdesign/design_iterations/`. The realignment comment is on the GitHub issue."
-   - Ask: "Review the plan and let me know when you're ready to proceed, or tell me what to change."
+   - Tell the user: "The plan is ready for review. Key files: `tasks/<feature-slug>/todo.md` (implementation phases), `tasks/<feature-slug>/doc.md` (decisions, on full plans), `tasks/<feature-slug>/interview.md` (the top-5 decisions posted at the gate), the BDD feature file or reproduction test, and any UI designs in `.superdesign/design_iterations/`. The Review Gate comment is on the PR."
+   - Ask: "Answer the interview questions on the PR and let me know when you're ready to proceed, or tell me what to change."
 4. **Wait for the user's response.** Do NOT proceed automatically.
-   - If the user says to proceed (e.g., "go", "looks good", "implement it"), invoke the dev-loop agent with `--implement-only --issue <N>` (plus `--repo` if provided). This runs steps 8-16.
+   - If the user says to proceed (e.g., "go", "looks good", "implement it"), invoke the dev-loop agent with `--implement-only --issue <N>` (plus `--repo` if provided). This runs steps 11-20 (process interview reply, then implementation through submit).
    - If the user requests changes, make the changes to the nano-spec files, then ask again if they're ready to proceed.
    - If the user says to stop, report status and stop.
 
 ## The dev-loop agent will:
 
-**Steps 1-6 (planning — run with `--plan-only`):**
+Many steps are conditional on the triage track (feature / bug / refactor / chore / spike) and its flag set. Steps marked `(if X)` only run when flag X is true.
+
+**Steps 1-10 (planning — run with `--plan-only`):**
 1. Pick or fetch the specified GitHub issue
 2. Realign the issue with the current system (rewrite issue body, post comment)
-3. Plan implementation with nano-spec
-4. Create a branch and draft PR
-5. Write BDD test specifications (user-perspective scenarios)
-6. Generate UI designs with superdesign (if the feature involves UI)
+3. Triage the issue → choose track + flags
+4. Plan with nano-spec (lite or full plan depth based on triage)
+5. Create a branch and draft PR
+6. Write BDD test specifications (user-perspective scenarios) `(if needs_bdd)`
+7. Write bug reproduction test `(if needs_repro)`
+8. Generate UI designs with superdesign (auto-detected)
+9. Formulate top-5 decisions interview
+10. Post the Review Gate (plan + spec/repro + designs + interview)
 
-— Review Gate (Step 7) —
+— STOP at the Review Gate. User answers the interview, replies on PR. —
 
-**Steps 8-16 (implementation — run with `--implement-only`):**
-8. Implement in phases with JIT testing
-9. UI fidelity check (static template audit + visual comparison)
-10. Automate BDD tests (real entry points, observable assertions)
-11. BDD guard (hard fail + auto-fix loop on user-perspective anti-patterns)
-12. Run and fix BDD tests
-13. Run the full test suite
-14. Self-review the PR
-15. Generate proof
-16. Submit for human review
+**Steps 11-20 (implementation — run with `--implement-only`):**
+11. Process the interview reply (re-do BDD/repro if scope changed)
+12. Implement in phases with JIT testing
+13. UI fidelity check (auto-detected)
+14. Automate BDD tests `(if needs_bdd)`
+15. BDD guard — hard fail + auto-fix loop `(if needs_bdd)`
+16. Run and fix BDD tests `(if needs_bdd)`
+17. Run the full test suite (also runs the bug reproduction test if any)
+18. Self-review the PR
+19. Generate proof `(if needs_proof)`
+20. Submit for human review
 
 ## Prerequisites
 

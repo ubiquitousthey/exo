@@ -11,6 +11,7 @@ A lightweight task specification tool that scales documentation to task complexi
 - $ACTION: The action to perform (create, status, update)
 - $TASK_NAME: The task folder name (kebab-case recommended)
 - $DESCRIPTION: Brief description (required for create, optional for others)
+- $PLAN_DEPTH: Plan depth override (`lite` | `full`, optional). When `lite`, force the minimal template regardless of complexity. When `full`, force the medium/large template. Used by triage to skip heavy planning on bugs, refactors, and chores.
 
 ## Actions
 
@@ -21,7 +22,11 @@ Create a new nano-spec task pack.
 
 #### Step 1 — Assess Complexity
 
-Before generating any files, evaluate the task to determine its size:
+If `$PLAN_DEPTH=lite` is provided by the caller, **skip complexity assessment** and use the small template (treat the task as **small**, regardless of signals). The caller — typically the triage skill — has already decided this is a bug, refactor, chore, or other non-feature track that doesn't warrant a full plan.
+
+If `$PLAN_DEPTH=full` is provided, **skip complexity assessment** and use the large template.
+
+Otherwise, evaluate the task to determine its size:
 
 | Signal | Small | Medium | Large |
 |--------|-------|--------|-------|
