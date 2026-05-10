@@ -139,6 +139,28 @@ Note: Step 15 has two phases — the guard *scan* (sonnet) and the auto-fix *rew
 
 **Override:** If a sonnet-routed step fails twice due to reasoning limitations (not test failures or API errors), retry it with opus.
 
+## Progress Tracking
+
+Use `TaskCreate` to maintain a visible task list of the steps you will run. The user watches this list to see progress in real time — do NOT skip this.
+
+**Initial list:**
+- **Full or plan-only mode**: At the very start of the workflow, create a single placeholder task `"Run dev-loop workflow"` so the user sees activity immediately. Mark it `in_progress` while you run Steps 1–3. After Step 3 returns the triage flags, replace the placeholder with the full filtered list (see filter rules below).
+- **Implement-only mode**: At the very start of Step 11, read the persisted triage flags from the nano-spec `README.md`, then create the filtered list directly.
+
+**Filter rules** (drop a step from the list if it won't run):
+- Full mode: include steps 1–20.
+- Plan-only mode: include steps 1–10.
+- Implement-only mode: include steps 11–20.
+- For each conditional step, drop it if the `(if <flag>)` annotation in its header evaluates false against the triage flag set. Conditional steps: 6 (`needs_bdd`), 7 (`needs_repro`), 14/15/16 (`needs_bdd`), 19 (`needs_proof`). Steps 8 and 13 are auto-detected by their skills — keep them in the list and let the skill no-op if it decides not to run.
+
+**Task title format**: use the step heading verbatim, e.g. `"Step 4 — Plan with nano-spec"`, `"Step 12 — Implement Phases"`.
+
+**During execution:**
+- Mark a task `in_progress` immediately before dispatching its sub-agent.
+- Mark it `completed` when the sub-agent returns successfully.
+- If a step pauses for the user (low triage confidence, realignment drift, BDD guard exhausted, etc.), leave the task `in_progress` while you surface the pause — the in-progress marker tells the user where the loop stalled.
+- If a step fails and you retry, keep the task `in_progress` across the retry attempts.
+
 ## Workflow
 
 Execute the following 20 steps sequentially. Many are conditional on the triage track and flag set produced in Step 3 — skip cleanly when the flag is `false`. After each non-trivial step, update the nano-spec `log.md` with what was done (skip `log.md` when `plan_depth=lite`). If `--resume` was provided, skip to Step 11.
@@ -147,6 +169,8 @@ Execute the following 20 steps sequentially. Many are conditional on the triage 
 
 **When `--plan-only` is set, execute ONLY steps 1-10, then stop.**
 **When `--implement-only` is set, skip steps 1-10, execute steps 11-20.**
+
+**Track progress with `TaskCreate`** — see the Progress Tracking section above. Create the task list before/alongside Step 1 (or Step 11 in implement-only mode) and update it as each step starts and completes.
 
 ---
 
