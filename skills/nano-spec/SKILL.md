@@ -121,7 +121,28 @@ Generate files based on complexity:
 
 #### todo.md
 
-Always generated. Scale the detail:
+Always generated. Scale the detail.
+
+**Acceptance Criteria — User-Perspective Rule (applies to ALL todo.md templates below)**
+
+Every AC must name an **actor** and an **observable outcome** in the form:
+
+> **When** `<actor>` `<does something>`, **then** `<observable outcome>`.
+
+The actor is who initiates the behavior (user, operator, calling service, scheduled job, downstream consumer, developer). The outcome is what they or another observer can see, receive, or measure. ACs that describe code structure, internal refactoring, or implementation steps are NOT acceptance criteria — move them to `doc.md`.
+
+For technical features the rule still holds — pick a developer, operator, or downstream service as the actor. **No exceptions**: if you cannot name an actor and an observable outcome, the work is not ready to plan.
+
+GOOD:
+- When the deploy job runs against a healthy cluster, the operator sees a "Deploy succeeded" status in the GitHub Action log.
+- When the `billing` service queries `/v1/invoices?customer=X`, it receives a 200 with open invoices in chronological order.
+
+BAD (rewrite or move to `doc.md`):
+- Implement the `/reset-password` POST endpoint.
+- Refactor `AuthMiddleware` for clarity.
+- Tests pass.
+
+If the parent issue contains implementation-shaped ACs, rewrite them as actor + outcome here, or capture the original wording in `doc.md` and pause to surface an open question for the human.
 
 **Small tasks:**
 ```markdown

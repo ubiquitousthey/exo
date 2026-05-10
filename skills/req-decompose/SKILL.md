@@ -53,6 +53,8 @@ preamble (phase goal, context). 2-4 sentences.}
 - [ ] {Each criterion maps to one verifiable behavior}
 - [ ] {Include edge cases and error conditions where implied by the requirement}
 
+Each criterion MUST follow the user-perspective rule below.
+
 ## Technical Context
 {Relevant information from architecture.md. Identify which components, data models,
 or integrations are involved in this requirement. Quote or paraphrase architecture.md
@@ -85,6 +87,34 @@ phase_dir: {$PHASE_DIR}
 -->
 ```
 
+## Acceptance Criteria — User-Perspective Rule
+
+Every AC must name an **actor** and an **observable outcome**. The actor initiates the behavior; the outcome is what they (or another observer) can see, measure, or receive. ACs that describe code structure, file layout, class names, or implementation steps are not acceptance criteria — they belong in the issue's Technical Context or in `doc.md` later.
+
+For technical features (refactors, infra, internal changes), the actor is one of: developer, operator, calling service, scheduled job, downstream consumer. The outcome must still be observable from outside the implementation. **No exceptions** for "internal" features — if you cannot name an actor and an observable outcome, the requirement is not ready to ship.
+
+Each criterion should follow the form:
+
+> **When** `<actor>` `<does something>`, **then** `<observable outcome>`.
+
+GOOD:
+- When a user submits the password reset form with a registered email, they receive a reset link by email within 60 seconds.
+- When the deploy job runs against a healthy cluster, the operator sees a "Deploy succeeded" status in the GitHub Action log.
+- When the `billing` service queries `/v1/invoices?customer=X`, it receives a 200 with all open invoices in chronological order.
+- When a developer runs `make build` on a clean checkout, the build completes in under 30 seconds with exit code 0.
+
+BAD (rewrite before accepting):
+- Implement the `/reset-password` POST endpoint.  ← no actor, no observable outcome
+- Add `is_active` column to `users` table.       ← schema change, not behavior
+- Refactor `AuthMiddleware` for clarity.         ← no observable difference
+- Tests pass.                                    ← not a user outcome
+- Code follows project conventions.              ← not a user outcome
+
+If a candidate criterion is shaped like the BAD examples, do one of:
+1. Rewrite it with an actor + observable outcome.
+2. Move it to the issue's Technical Context (it's a constraint, not an AC).
+3. If neither works, surface it as an open question — the requirement is not yet shippable.
+
 ## Open Question Detection Criteria
 
 Surface an open question when any of these conditions are met:
@@ -96,6 +126,7 @@ Surface an open question when any of these conditions are met:
 5. **Ambiguous dependency** — a declared dependency's own requirement description is vague enough that this requirement's implementation could go multiple ways depending on how the dependency is resolved.
 6. **Missing actor or trigger** — the requirement describes behavior without specifying who or what initiates it.
 7. **Undefined error handling** — the requirement describes a happy path without specifying what happens on failure.
+8. **Implementation-shaped requirement** — the requirement reads as a code-structure directive (e.g., "add column X", "refactor module Y", "implement endpoint Z") with no accompanying actor + observable outcome. Surface as: "What does the user / operator / calling service observe when this is done?"
 
 ## Actions
 

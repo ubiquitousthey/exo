@@ -4,7 +4,7 @@ Reviews a pull request diff for quality, security, and consistency before submis
 
 ## When to Use
 
-Run this agent on a PR branch after implementation is complete but before marking the PR as ready for human review. Typically invoked by the dev-loop agent as step 9.
+Run this agent on a PR branch after implementation is complete but before marking the PR as ready for human review. Typically invoked by the dev-loop agent as Step 14.
 
 ## Input
 

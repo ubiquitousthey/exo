@@ -12,29 +12,30 @@ Invoked via the `/dev-loop` command. Requires a GitHub repository with `gh` CLI 
 
 - `--repo owner/repo` — Target repository (optional, defaults to current repo)
 - `--issue N` — Specific issue number to work on (optional, defaults to picking the oldest `claude-ready` issue)
-- `--plan-only` — Execute only steps 1-5 (planning), then stop and report the plan. Used by the command when `--review-plan` is specified.
-- `--implement-only` — Execute only steps 6-13 (implementation). Requires `--issue N`. Assumes steps 1-5 were already completed (branch exists, nano-spec exists, BDD feature exists). Used by the command after the user approves the plan.
+- `--plan-only` — Execute only steps 1-6 (planning + realignment), then stop at the Review Gate and report the plan. Used by the command when `--review-plan` is specified.
+- `--implement-only` — Execute only steps 8-16 (implementation). Requires `--issue N`. Assumes steps 1-6 were already completed (branch exists, nano-spec exists, BDD feature exists, realignment was applied). Used by the command after the user approves the plan.
 
 ## Execution Modes
 
-**Full mode (default):** Execute all 13 steps sequentially.
+**Full mode (default):** Execute all 16 steps sequentially.
 
-**Plan-only mode (`--plan-only`):** Execute steps 1-5, then STOP. Report back:
+**Plan-only mode (`--plan-only`):** Execute steps 1-6, then STOP. Report back:
 - The issue number and title
+- A summary of any realignment drift detected (Step 2)
 - The branch name
 - The nano-spec task directory path
 - The BDD feature file path
-- UI design file paths (if Step 5 generated designs)
+- UI design file paths (if Step 6 generated designs)
 - A brief summary of the planned phases from `todo.md`
 
-Do NOT proceed to step 6. The command layer will present this to the user for review.
+Do NOT proceed to step 8. The command layer will present this to the user for review.
 
-**Implement-only mode (`--implement-only`):** Skip steps 1-5. Read the existing nano-spec state from `tasks/<feature-slug>/` to pick up where planning left off:
+**Implement-only mode (`--implement-only`):** Skip steps 1-6. Read the existing nano-spec state from `tasks/<feature-slug>/` to pick up where planning left off:
 1. Read `todo.md` to understand the phases
 2. Read `log.md` to understand what's been done
 3. Read the BDD feature file (path from the task directory)
 4. Check out the existing branch: `dev-loop/<issue-number>-*`
-5. Execute steps 6-13
+5. Execute steps 8-16
 
 ## State Management
 
@@ -96,10 +97,11 @@ If resolution fails (no matching task directory, branch, or PR), report the erro
    ```bash
    git checkout dev-loop/<issue-number>-<feature-slug>
    ```
-3. Invoke the `review-gate` skill with action `check` to read PR feedback.
+3. Invoke the `realign` skill with action `check`. If the issue has been edited since the last realignment marker, surface the drift report and pause for the user before continuing.
+4. Invoke the `review-gate` skill with action `check` to read PR feedback.
    - If feedback was left, incorporate changes into the nano-spec and/or BDD feature file. Commit and push the updates.
    - If no approval comment is found, warn the user and ask whether to proceed.
-4. Skip directly to **Step 6** and continue from there.
+5. Skip directly to **Step 8** and continue from there.
 
 If the nano-spec task directory doesn't exist, report an error and stop.
 
@@ -109,8 +111,10 @@ Not all steps require the same level of reasoning. Dispatch each step as a sub-a
 
 | Model | Steps | Rationale |
 |-------|-------|-----------|
-| **opus** | 2 (nano-spec plan), 4 (BDD spec), 5 (UI design), 6 (implement), 11 (self-review) | Architectural decisions, spec authoring, complex implementation, critical analysis |
-| **sonnet** | 1 (pick issue), 3 (branch/PR), 7 (UI fidelity), 8 (automate BDD), 9 (BDD test loop), 10 (full test suite), 12 (proof), 13 (submit PR) | Mechanical execution, running commands, following established patterns |
+| **opus** | 2 (realign), 3 (nano-spec plan), 5 (BDD spec), 6 (UI design), 8 (implement), 11 (BDD guard auto-fix), 14 (self-review) | Architectural decisions, drift detection, spec authoring, complex implementation, critical analysis |
+| **sonnet** | 1 (pick issue), 4 (branch/PR), 9 (UI fidelity), 10 (automate BDD), 11 (guard scan), 12 (BDD test loop), 13 (full test suite), 15 (proof), 16 (submit PR) | Mechanical execution, running commands, following established patterns |
+
+Note: Step 11 has two phases — the guard *scan* (sonnet) and the auto-fix *rewrite* (opus). Spawn each as a separate sub-agent.
 
 **How to apply:** For each step, spawn a sub-agent via the Agent tool with the appropriate `model` parameter. Pass the full skill invocation instructions and all required context (issue number, feature slug, paths, REQ-ID, etc.) in the agent prompt. The sub-agent executes the step and returns its results, which you use to continue the workflow.
 
@@ -118,12 +122,12 @@ Not all steps require the same level of reasoning. Dispatch each step as a sub-a
 
 ## Workflow
 
-Execute the following 13 steps sequentially. After each step, update the nano-spec `log.md` with what was done. If `--resume` was provided, skip to Step 6.
+Execute the following 16 steps sequentially. After each step, update the nano-spec `log.md` with what was done. If `--resume` was provided, skip to Step 8.
 
 **Dispatch each step as a sub-agent using the model specified in the Model Routing table above.**
 
-**When `--plan-only` is set, execute ONLY steps 1-5, then stop.**
-**When `--implement-only` is set, skip steps 1-5, execute steps 6-13.**
+**When `--plan-only` is set, execute ONLY steps 1-6, then stop.**
+**When `--implement-only` is set, skip steps 1-6, execute steps 8-16.**
 
 ---
 
@@ -146,21 +150,34 @@ Invoke the `issue-pick` skill.
 
 ---
 
-### Step 2 — Plan with nano-spec
+### Step 2 — Realign with Current System
+
+Invoke the `realign` skill with action `realign`.
+
+Pass: issue number, REQ-ID (if available), repo (if provided).
+
+1. The skill isolates the user-need, inventories every concrete reference in the issue body, verifies each against the current code, reimagines drifted hints, rewrites the issue body, and posts a summary comment.
+2. **If the skill returns `needs_human=true`** (the user-need is obsolete or not derivable) → Pause and surface the report. Do not continue until the user has clarified or closed the issue.
+3. **Re-fetch the issue body** after realignment so subsequent steps consume the rewritten content (Core Need + reimagined Current-System Context + preserved AC list).
+4. Update the locally-stored issue body used by Step 3 (nano-spec) and Step 5 (BDD spec) with the new realigned body.
+
+---
+
+### Step 3 — Plan with nano-spec
 
 Invoke the `nano-spec` skill with action `create`.
 
-1. Invoke `nano-spec create <feature-slug> "<issue title>: <issue body summary>"`.
+1. Invoke `nano-spec create <feature-slug> "<issue title>: <realigned issue body summary>"`.
 2. **Populate the Traceability section** in the generated `README.md`:
    - **Source**: `#<issue-number>` (and `REQ-XXX` if available)
-   - **BDD Feature**: *(to be populated after Step 4)*
-3. Review and refine `todo.md`: break large tasks into phases, add research items.
+   - **BDD Feature**: *(to be populated after Step 5)*
+3. Review and refine `todo.md`: break large tasks into phases, add research items. Verify ACs follow the user-perspective rule (actor + observable outcome) — rewrite or move to `doc.md` as needed.
 4. Review `doc.md` and populate Open Questions.
 5. **If there are unresolvable open questions** → Pause and ask the user.
 
 ---
 
-### Step 3 — Create Branch & Draft PR
+### Step 4 — Create Branch & Draft PR
 
 Invoke the `branch-pr` skill with action `create`.
 
@@ -170,25 +187,26 @@ Store the returned PR number and URL for subsequent steps.
 
 ---
 
-### Step 4 — Write BDD Test Spec
+### Step 5 — Write BDD Test Spec
 
 Invoke the `bdd-author` skill with action `write`.
 
-1. Pass the issue title and body as context, along with the issue number and REQ-ID (if available).
-2. Review the generated feature file for scenario/acceptance criteria alignment and traceability tags.
-3. Store the feature file path.
-4. **Update the nano-spec** `README.md` Traceability section with the BDD feature file path.
-5. Commit the feature file and the nano-spec update:
+1. Pass the realigned issue title and body as context, along with the issue number and REQ-ID (if available).
+2. **If the skill reports implementation-shaped ACs** that fail the user-perspective rule → Pause. Either rewrite the upstream AC (issue + nano-spec `todo.md`) and re-invoke, or surface to the user.
+3. Review the generated feature file for scenario/acceptance criteria alignment and traceability tags.
+4. Store the feature file path.
+5. **Update the nano-spec** `README.md` Traceability section with the BDD feature file path.
+6. Commit the feature file and the nano-spec update:
    ```bash
    git add <feature-file-path> tasks/<feature-slug>/README.md
    git commit -m "test: add BDD feature spec for #<number> [REQ-XXX]"
    ```
    Include `[REQ-XXX]` only if a REQ-ID is available.
-6. Push the commit.
+7. Push the commit.
 
 ---
 
-### Step 5 — UI Design (Conditional)
+### Step 6 — UI Design (Conditional)
 
 Invoke the `ui-design` skill with action `generate`.
 
@@ -198,29 +216,29 @@ The skill handles detection, prerequisite checks, context gathering, superdesign
 
 ---
 
-### Review Gate
+### Step 7 — Review Gate
 
 Invoke the `review-gate` skill with action `post`.
 
-Pass: PR number, nano-spec path, BDD feature path, feature slug, design paths (if Step 5 generated designs), repo (if provided).
+Pass: PR number, nano-spec path, BDD feature path, feature slug, design paths (if Step 6 generated designs), repo (if provided).
 
 **Stop execution.** The user will review on GitHub and resume with `/dev-loop --resume <feature-slug>`.
 
-**If `--plan-only` is set, STOP HERE.** Report the issue, branch, nano-spec directory, BDD feature path, UI designs (if any), and phase summary.
+**If `--plan-only` is set, STOP HERE.** Report the issue, realignment summary, branch, nano-spec directory, BDD feature path, UI designs (if any), and phase summary.
 
 ---
 
-### Step 6 — Implement Phases
+### Step 8 — Implement Phases
 
 Invoke the `implement-phases` skill with action `run` (or `resume` if picking up from a partial run).
 
-Pass: nano-spec path, issue number, REQ-ID (if available), design paths (if Step 5 generated designs).
+Pass: nano-spec path, issue number, REQ-ID (if available), design paths (if Step 6 generated designs).
 
 **If `--implement-only` is set, start here.** First recover state by reading the nano-spec task directory and checking out the branch.
 
 ---
 
-### Step 7 — UI Fidelity Check (Conditional)
+### Step 9 — UI Fidelity Check (Conditional)
 
 Invoke the `ui-verify` skill with action `check`.
 
@@ -230,17 +248,35 @@ The skill handles skip detection, static audit, visual comparison, fix loops, an
 
 ---
 
-### Step 8 — Automate BDD Tests
+### Step 10 — Automate BDD Tests
 
 Invoke the `bdd-author` skill with action `automate`.
 
-1. Pass the feature file path from Step 4.
-2. Fill in step definition bodies with real assertions based on the implementation.
+1. Pass the feature file path from Step 5.
+2. Fill in step definition bodies with real entry points and observable assertions per the Step Definition Rules in the `bdd-author` skill. No `TODO`-and-`pass` bodies — write real bodies even if the implementation isn't ready (the test can fail until it lands).
 3. Commit and push the step definitions.
 
 ---
 
-### Step 9 — BDD Fix/Test Loop
+### Step 11 — BDD Guard
+
+Invoke the `bdd-author` skill with action `guard`. Pass: paths to the step definition files written in Step 10, the feature file path, and the issue number.
+
+**Hard fail with auto-fix loop.** Behavior:
+
+1. Run the guard scan (sonnet sub-agent). If `BDD Guard: PASS`, proceed to Step 12.
+2. If `FAIL`, dispatch an opus sub-agent to rewrite each offending step body per the findings — drive a real entry point and assert observable outputs as defined in the `bdd-author automate` Step Definition Rules.
+3. Re-run the guard. Repeat the rewrite/scan cycle up to **3 iterations**.
+4. If still failing after 3 iterations, **pause and ask the user**. Persistent anti-patterns usually mean the AC isn't actually user-observable and needs to be reworked upstream (Step 3 nano-spec → Step 5 feature file).
+5. After PASS, commit and push the rewritten step definitions:
+   ```bash
+   git add <step-defs-files>
+   git commit -m "test: align BDD step definitions with user-perspective rule for #<number>"
+   ```
+
+---
+
+### Step 12 — BDD Fix/Test Loop
 
 Invoke the `test-loop` skill with action `bdd`.
 
@@ -250,7 +286,7 @@ The skill handles test execution, failure analysis, fix iterations (max 5), and 
 
 ---
 
-### Step 10 — Full Test Suite
+### Step 13 — Full Test Suite
 
 Invoke the `test-loop` skill with action `full`.
 
@@ -260,7 +296,7 @@ The skill handles runner detection, execution, regression analysis, fix iteratio
 
 ---
 
-### Step 11 — Self-Review
+### Step 14 — Self-Review
 
 Invoke the `code-review` skill with action `self`.
 
@@ -273,11 +309,11 @@ Invoke the `code-review` skill with action `self`.
    git add <files>
    git commit -m "refactor: address self-review findings for #<number>"
    ```
-6. Store the self-review summary for Step 13.
+6. Store the self-review summary for Step 16.
 
 ---
 
-### Step 12 — Generate Proof
+### Step 15 — Generate Proof
 
 Invoke the `showboat-proof` skill with action `prove`.
 
@@ -293,10 +329,10 @@ Pass: the issue title and body as feature context, the BDD feature file path, th
 
 ---
 
-### Step 13 — Submit for Review
+### Step 16 — Submit for Review
 
 Invoke the `submit-pr` skill with action `submit`.
 
-Pass: PR number, issue number, feature slug, nano-spec path, BDD feature path, proof path, self-review summary, BDD result, test suite result, fidelity rating and report path (if Step 7 ran), REQ-ID (if available), phase directory (if known), repo (if provided).
+Pass: PR number, issue number, feature slug, nano-spec path, BDD feature path, proof path, self-review summary, BDD result, test suite result, fidelity rating and report path (if Step 9 ran), REQ-ID (if available), phase directory (if known), repo (if provided).
 
 Report the final status to the user with a link to the PR.
